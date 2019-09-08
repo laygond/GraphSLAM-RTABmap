@@ -1,0 +1,51 @@
+<launch>
+
+  <!-- USER PARAMETERS -->
+  <arg name="pkg_name" default="where_am_i"/>
+  <arg name="map_yaml_name" default="map.yaml"/>
+  <arg name="x_init_value" default="0"/>
+  <arg name="y_init_value" default="0"/>
+
+  <!-- Special arguments ('$' cannot be used twice in beteween "") -->
+  <arg name="dollar" default="$"/>
+  <arg name="find_pkg" default="(find $(arg pkg_name))"/>
+  
+  <!-- Map Server -->
+  <arg name="map_file" default="$(arg dollar)$(arg find_pkg)/maps/$(arg map_yaml_name)"/>
+    <!-- Print Map File to terminal (to double check) -->
+    <node name="pub_text" pkg="rostopic" type="rostopic" args="pub /msg std_msgs/String '$(arg map_file)'" output="screen" />
+    <node name="print_text" pkg="rostopic" type="rostopic" args="echo /msg" output="screen" />
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" />
+  
+  <!-- AMCL Node -->
+  <node name="amcl" pkg="amcl" type="amcl" output="screen">
+    <!-- remap from="scan" to="$(arg pkg_name)/laser/scan"/ -->
+    <!-- Find the purpose of the parameters added below at (http://wiki.ros.org/amcl): -->
+    <param name="odom_frame_id" value="odom"/>
+    <param name="transform_tolerance" value="0.4"/>
+    <param name="odom_model_type" value="diff-corrected"/> <!-- "diff", "omni", "diff-corrected" or "omni-corrected" -->
+    <param name="base_frame_id" value="robot_footprint"/>
+    <param name="global_frame_id" value="map"/>
+
+    <!-- Give AMCL a pose estimate but you could also do it in RViz 2D Pose Estimate function -->
+    <!-- the values should correspond to your world.launch file -->
+    <param name="initial_pose_x" value="$(arg x_init_value)"/>
+    <param name="initial_pose_y" value="$(arg y_init_value)"/>
+  </node>
+
+  <!-- Move Base -->
+  <node name="move_base" pkg="move_base" type="move_base" respawn="false" output="screen">
+    <!-- remap from="scan" to="$(arg pkg_name)/laser/scan"/ -->
+    <param name="base_global_planner" value="navfn/NavfnROS" />
+    <param name="base_local_planner" value="base_local_planner/TrajectoryPlannerROS"/>
+    
+    <!--  When there are plenty of parameters, use the rosparam tag to include config files to set multiple parameters directly -->
+    <rosparam file="$(arg dollar)$(arg find_pkg)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(arg dollar)$(arg find_pkg)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(arg dollar)$(arg find_pkg)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(arg dollar)$(arg find_pkg)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(arg dollar)$(arg find_pkg)/config/base_local_planner_params.yaml" command="load" />  
+    
+  </node>
+
+</launch>
